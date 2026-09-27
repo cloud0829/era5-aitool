@@ -1,0 +1,134 @@
+classDiagram
+    class DownloadSettings {
+        +cds_max_workers: int = 6
+        +chunk_granularity: str = "day"
+        +max_blocks_per_task: int = 2000
+        +auto_max_block_gb: float = 2.0
+        +retry_max: int = 3
+        +backoff_base: float = 30.0
+        +aria2_enabled: bool = True
+        +aria2_path: str = ""
+        +aria2_connections: int = 8
+        +aria2_timeout_s: int = 1800
+        +submit_stagger_s: float = 1.0
+        +progress_persist_every: int = 20
+        +progress_persist_interval_s: float = 1.0
+        +mock: bool = False
+    }
+
+    class CdsRequest {
+        +schema: RequestSchema
+        +dataset: str
+        +family: str
+        +grid_step: float
+        +granularity: str
+        +blocks: List~Dict~
+        +warnings: List~str~
+        +to_dict() Dict
+    }
+
+    class Normalizer {
+        -family_table: Dict
+        -settings
+        +__init__(settings, granularity)
+        +normalize(schema, granularity) CdsRequest
+        -_resolve_granularity(schema, requested) Tuple
+        -_split_blocks(schema, granularity) List~Dict~
+        -_iter_months(schema) List~Tuple~
+        -_iter_days(schema) List~Tuple~
+        -_years(schema) List~int~
+        -_estimate_block_gb(schema, granularity) float
+    }
+
+    class CdsChannel {
+        +settings: Settings
+        +max_workers: int
+        +cache_dir: Path
+        +mock: bool
+        +has_cds_credentials() bool
+        +prepare_blocks(cds_req) List~Dict~
+        +worker_cfg(fail_rate) Dict
+        +run_blocks(task, blocks, store, bus, cancel_event, on_block_done) List~Dict~
+        +aria2_status() Aria2Info
+    }
+
+    class Transport {
+        +resolve_result_url(handle) Tuple
+        +download_block_file(client, block, target, cfg, hooks) TransportResult
+        -_cdsapi_download(client, block, target) TransportResult
+        -_aria2_download(handle, url, size, target, cfg, hooks) TransportResult
+    }
+
+    class TransportResult {
+        +transport: str
+        +bytes: int
+        +elapsed: float
+        +rate_mbps: float
+        +fallback_reason: str
+    }
+
+    class Aria2 {
+        +probe_aria2(explicit_path) Aria2Info
+        +build_aria2_argv(bin_path, url, target, connections, timeout_s) List~str~
+        +run_aria2(argv, timeout_s, cancel_check, poll_interval) Aria2Run
+        +aria2_download(url, target, bin_path, connections, timeout_s, expected_size, cancel_check) Aria2Run
+        +verify_size(target, expected_size) bool
+        +cleanup_partial(target) None
+    }
+
+    class Aria2Info {
+        +available: bool
+        +path: str
+        +version: str
+        +source: str
+    }
+
+    class Aria2Run {
+        +ok: bool
+        +returncode: int
+        +elapsed: float
+        +bytes: int
+        +argv: List~str~
+        +stderr_tail: str
+        +cancelled: bool
+    }
+
+    class FakeCdsClient {
+        +retrieve(name, request, target) Dict_or_FakeResult
+        +info(name) Dict
+    }
+
+    class FakeResult {
+        +location: str
+        +content_length: int
+        +download(target) str
+    }
+
+    class Orchestrator {
+        +submit(schema, task_type) Task
+        +resume(task_id) Task
+        -_run_download(task_id, blocks) None
+        -_persist_throttled(task, force) None
+        -_rebuild_result_files(blocks, store) List~str~
+    }
+
+    class ResumableStore {
+        +mark_done(key)
+        +mark_failed(key, err)
+        +is_done(key) bool
+        +pending_blocks(blocks) List~Dict~
+    }
+
+    Normalizer --> CdsRequest : produces
+    CdsChannel --> CdsRequest : consumes
+    CdsChannel ..> Transport : worker calls
+    Transport ..> Aria2 : optional accelerate
+    Transport --> TransportResult
+    Aria2 --> Aria2Info
+    Aria2 --> Aria2Run
+    FakeCdsClient --> FakeResult : two-phase mock
+    Transport ..> FakeCdsClient : mock path
+    Orchestrator --> CdsChannel
+    Orchestrator --> ResumableStore
+    CdsChannel --> DownloadSettings : reads
+    Normalizer --> DownloadSettings : reads granularity

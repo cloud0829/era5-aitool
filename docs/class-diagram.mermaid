@@ -1,0 +1,109 @@
+classDiagram
+    %% ===== 自然语言解析层 =====
+    class NLParser {
+        <<abstract>>
+        +parse(text: str): RequestSchema
+    }
+    class LLMParser {
+        +api_key: str
+        +model: str
+        +parse(text: str): RequestSchema
+        +clarify(missing: list): Question
+    }
+    class RuleParser {
+        +var_map: dict
+        +parse(text: str): RequestSchema
+    }
+    class RequestSchema {
+        +dataset: str
+        +variables: list~str~
+        +area: list
+        +timerange: tuple
+        +frequency: str
+        +aggregation: str
+        +validate(): bool
+    }
+    NLParser <|-- LLMParser
+    NLParser <|-- RuleParser
+    NLParser ..> RequestSchema : produces
+    LLMParser ..> RequestSchema : produces
+    RuleParser ..> RequestSchema : produces
+
+    %% ===== 编排与调度层 =====
+    class Orchestrator {
+        +submit(req: RequestSchema): Task
+        +get_status(task_id): Task
+        +cancel(task_id): void
+    }
+    class ChannelRouter {
+        +route(req: RequestSchema): Channel
+    }
+    class Task {
+        +task_id: str
+        +status: enum
+        +progress: float
+        +logs: list~str~
+    }
+    Orchestrator --> ChannelRouter : uses
+    Orchestrator --> Task : manages
+
+    %% ===== 数据获取层（双通道）=====
+    class Channel {
+        <<abstract>>
+        +fetch(req: RequestSchema): Dataset
+    }
+    class CdsChannel {
+        +max_workers: int
+        +fetch(req): Dataset
+    }
+    class GcsChannel {
+        +bucket: str
+        +fetch(req): Dataset
+    }
+    Channel <|-- CdsChannel
+    Channel <|-- GcsChannel
+    ChannelRouter --> Channel : selects
+    Channel ..> Task : updates progress
+
+    %% ===== 处理与出图层 =====
+    class PlotEngine {
+        +render(data: Dataset, cfg: PlotConfig): Artifact
+    }
+    class PlotConfig {
+        +variable_map: dict
+        +projection: str
+        +colormap: str
+        +aggregation: str
+        +output_format: str
+        +load(profile: str): PlotConfig
+    }
+    class Reproject {
+        +to_regular_grid(ds: Dataset): Dataset
+    }
+    PlotEngine --> PlotConfig : reads
+    PlotEngine --> Reproject : uses
+
+    %% ===== 账户与配置层 =====
+    class AccountWizard {
+        +state: enum
+        +start(): void
+        +submit_credentials(uid, key): bool
+        +finalize(): void
+    }
+    class KeyringStore {
+        +save(service, key, secret): void
+        +get(service, key): str
+    }
+    class Settings {
+        +llm_provider: str
+        +channel_preference: str
+        +load(path): Settings
+    }
+    AccountWizard --> KeyringStore : writes
+    Settings ..> ChannelRouter : influences
+    Settings ..> NLParser : influences
+
+    %% ===== 跨层关系 =====
+    Orchestrator ..> PlotEngine : triggers after fetch
+    CdsChannel --> KeyringStore : reads CDS key
+    Task --> RequestSchema : bound to

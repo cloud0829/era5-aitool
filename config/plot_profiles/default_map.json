@@ -1,0 +1,13 @@
+{
+  "name": "default_map",
+  "plot_type": "map",
+  "projection": {"type": "PlateCarree"},
+  "basemap": "cartopy",
+  "colormap": "RdYlBu_r",
+  "aggregation": "raw",
+  "output_format": "png",
+  "title": "",
+  "grid_step": null,
+  "animation_frames": 10,
+  "region": {}
+}

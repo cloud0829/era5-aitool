@@ -1,0 +1,43 @@
+{
+  "version": 2,
+  "llm": {
+    "deepseek_base_url": "https://api.deepseek.com",
+    "deepseek_model": "deepseek-chat"
+  },
+  "download": {
+    "cds_max_workers": 4,
+    "retry_max": 3,
+    "backoff_base": 30.0,
+    "backoff_factor": 2.0,
+    "backoff_max": 600.0,
+    "backoff_jitter": 0.1,
+    "mock": false,
+    "cache_ttl_days": 180,
+    "cache_max_gb": 50.0,
+    "chunk_granularity": "day",
+    "max_blocks_per_task": 2000,
+    "auto_max_block_gb": 2.0,
+    "aria2_enabled": false,
+    "aria2_path": "",
+    "aria2_connections": 8,
+    "aria2_timeout_s": 1800,
+    "submit_stagger_s": 1.0,
+    "progress_persist_every": 20,
+    "progress_persist_interval_s": 1.0,
+    "drain_wait_timeout_s": 600.0,
+    "block_interleave": true,
+    "throttle_enabled": true,
+    "throttle_base_s": 30.0,
+    "throttle_factor": 2.0,
+    "throttle_max_s": 600.0,
+    "throttle_jitter_s": 2.0,
+    "adaptive_concurrency": true,
+    "adaptive_min_workers": 1,
+    "adaptive_recover_every": 6,
+    "mock_error_mode": "retryable_429"
+  },
+  "plot": {
+    "default_profile": "default_map",
+    "offline_geo_dir": ""
+  }
+}

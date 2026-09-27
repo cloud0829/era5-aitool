@@ -1,0 +1,104 @@
+classDiagram
+    class Settings {
+        +cache_dir: Path
+        +tasks_dir: Path
+    }
+    class ParsedParts {
+        +dataset: str
+        +variable: str
+        +freq: str
+        +year: int
+        +month: int|None
+        +day: int|None
+        +period: str
+    }
+    class CacheFileEntry {
+        +rel_path: str
+        +dataset: str
+        +variable: str
+        +freq: str
+        +period: str
+        +size: int
+        +human_size: str
+        +status: str
+        +busy_by: List~str~
+        +mtime: str
+        +parsed: bool
+    }
+    class catalog {
+        +parse_rel_path(rel) ParsedParts|None
+        +human_size(num_bytes) str
+        +scan_cache_files(cache_dir, busy) List~CacheFileEntry~
+    }
+    class occupied {
+        +collect_busy_map(tasks_dir) Dict~str, List~str~~
+    }
+    class nc_meta {
+        +read_netcdf_header(abs_path) Dict
+    }
+    class DataManagerService {
+        +__init__(settings: Settings)
+        +busy_map() Dict~str, List~str~~
+        +list_files() List~CacheFileEntry~
+        +read_metadata(rel) Dict
+        +delete_paths(rels) List~Dict~
+        +_resolve(rel) Path
+    }
+    class DataRouter {
+        +GET /api/data/files
+        +GET /api/data/files/metadata
+        +DELETE /api/data/files
+    }
+    class ApiClient {
+        +dataFiles()
+        +dataMetadata(path)
+        +dataDeleteFile(path)
+        +dataDeleteFiles(paths)
+    }
+    class DataPage {
+        +files: CacheFile[]
+        +query: str
+        +sortDir: asc|desc
+        +selected: Set~str~
+        +detailEntry: CacheFile|None
+        +confirm: DialogState|None
+        +refresh()
+        +filtered()
+        +openDetail()
+        +confirmDelete()
+    }
+    class FileTable {
+        +rows: CacheFile[]
+        +sortDir
+        +selected
+        +onSort/onToggle/onToggleAll/onDetail/onDelete
+    }
+    class FileStatusChip {
+        +status: ready|busy
+        +busyBy: string[]
+    }
+    class FileDetailDrawer {
+        +entry: CacheFile
+        +meta: FileMetaData
+        +loading: bool
+    }
+    class DeleteFileDialog {
+        +mode: single|batch
+        +entries: CacheFile[]
+        +onConfirm()
+    }
+
+    DataManagerService --> Settings
+    DataManagerService --> catalog : 使用
+    DataManagerService --> occupied : 使用
+    DataManagerService --> nc_meta : 使用
+    catalog --> ParsedParts
+    catalog --> CacheFileEntry : 生成
+    DataRouter --> DataManagerService
+    ApiClient --> DataRouter : REST
+    DataPage --> ApiClient
+    DataPage --> FileTable
+    DataPage --> FileStatusChip
+    DataPage --> FileDetailDrawer
+    DataPage --> DeleteFileDialog
+    FileTable --> CacheFileEntry

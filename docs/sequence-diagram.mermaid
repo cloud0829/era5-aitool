@@ -1,0 +1,71 @@
+%% ===== 场景一：自然语言下载全流程（含兜底与补参）=====
+sequenceDiagram
+    participant U as 用户(前端)
+    participant NL as NL解析层
+    participant O as 编排层
+    participant R as 路由
+    participant C as 数据通道
+    participant P as 出图引擎
+
+    U->>NL: 提交自然语言文本
+    alt 有 LLM Key 且在线
+        NL->>NL: LLM 解析 → RequestSchema
+    else 无 Key / 离线
+        NL->>NL: 规则解析(模板+变量词典)
+    end
+    NL-->>U: 返回 RequestSchema 或 补参表单
+    opt 缺必填字段
+        U->>NL: 提交参数表单
+    end
+    U->>O: submit(RequestSchema)
+    O->>R: route(req)
+    R-->>O: 选定 Channel(CDS/GCS)
+    O->>C: fetch(req)
+    C-->>O: 进度更新 (WebSocket 推前端)
+    C-->>O: Dataset 完成
+    O->>P: render(data, PlotConfig)
+    P-->>U: 图片/动画结果
+
+%% ===== 场景二：数据通道路由决策 =====
+sequenceDiagram
+    participant O as 编排层
+    participant R as ChannelRouter
+    participant S as Settings
+    R->>R: 数据集在 arco 覆盖?
+    R->>R: 时效/变量满足?
+    R->>S: 读取用户通道偏好
+    alt 覆盖&时效&变量满足 且 用户未强制CDS
+        R-->>O: GcsChannel
+    else 否则
+        R-->>O: CdsChannel
+    end
+
+%% ===== 场景三：账号申请半自动引导 =====
+sequenceDiagram
+    participant U as 用户
+    participant W as AccountWizard
+    participant K as KeyringStore
+    U->>W: 点击“申请账号”
+    W-->>U: 打开 CDS 注册页 + 说明
+    U->>W: 粘贴 UID + API Key
+    W->>W: 校验(调CDS探测)
+    alt 校验通过
+        W->>K: 存入钥匙串
+        W->>W: 生成 ~/.cdsapirc + 注入环境变量
+        W-->>U: 就绪
+    else 校验失败
+        W-->>U: 提示重试/重新引导
+    end
+
+%% ===== 场景四：出图配置热加载生效 =====
+sequenceDiagram
+    participant U as 用户
+    participant CF as ConfigPanel
+    participant PC as PlotConfig
+    participant P as PlotEngine
+    U->>CF: 修改配色/投影/聚合并保存
+    CF->>PC: load(profile) 重载
+    Note over PC: 优先级: 面板覆盖 > profile > 默认
+    U->>P: 触发出图
+    P->>PC: 读取最新 PlotConfig
+    P-->>U: 按新配置出图(无需重启)

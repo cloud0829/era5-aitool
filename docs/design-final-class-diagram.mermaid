@@ -1,0 +1,139 @@
+%% ===== v2 最终版类图（design-final.md §7.1）=====
+%% 变更：删除 GcsChannel；NL 层 DeepSeekParser；router → Normalizer；新增 VariableMap / Regrid / LlmSettings
+classDiagram
+    %% ===== 自然语言解析层 =====
+    class NLParser {
+        <<abstract>>
+        +parse(text: str) RequestSchema
+        +clarify(missing: list) Question
+    }
+    class DeepSeekParser {
+        +api_key: str
+        +base_url: str
+        +model: str
+        +parse(text: str) RequestSchema
+        +_clean_json(raw: str) dict
+    }
+    class RuleParser {
+        +var_map: VariableMap
+        +parse(text: str) RequestSchema
+    }
+    class VariableMap {
+        +synonyms: dict
+        +lookup(word: str, family: str) list~str~
+    }
+    class RequestSchema {
+        +dataset: str
+        +dataset_family: str
+        +variables: list~str~
+        +pressure_levels: list~int~ | None
+        +area: Area
+        +timerange: Timerange
+        +frequency: str
+        +aggregation: str
+        +confidence: float
+        +validate() bool
+    }
+    NLParser <|-- DeepSeekParser
+    NLParser <|-- RuleParser
+    DeepSeekParser ..> RequestSchema : produces
+    RuleParser ..> RequestSchema : produces
+    RuleParser --> VariableMap : reads
+
+    %% ===== 编排与调度层 =====
+    class Orchestrator {
+        +submit(req: RequestSchema) Task
+        +get_status(task_id) Task
+        +cancel(task_id) void
+        +resume(task_id) void
+    }
+    class Normalizer {
+        +family_table: dict
+        +normalize(req: RequestSchema) CdsRequest
+        +build_cds_request(req, year, month) dict
+    }
+    class Task {
+        +task_id: str
+        +status: enum
+        +progress: float
+        +block_stats: dict
+        +params: dict
+        +error: dict
+    }
+    Orchestrator --> Normalizer : uses
+    Orchestrator --> Task : manages
+
+    %% ===== 数据获取层（单一 CDS 通道）=====
+    class CdsChannel {
+        +max_workers: int
+        +fetch(req: CdsRequest) Dataset
+        +split_blocks(req) list~Block~
+    }
+    class ConcurrencyManager {
+        +pool: ProcessPoolExecutor
+        +retry_max: int
+        +backoff_base: float
+        +run_blocks(blocks) void
+    }
+    class ResumableStore {
+        +manifest_path: str
+        +load_manifest() dict
+        +mark_done(block) void
+        +mark_failed(block, err) void
+        +pending_blocks() list
+    }
+    CdsChannel --> ConcurrencyManager : uses
+    CdsChannel --> ResumableStore : uses
+    CdsChannel ..> Task : updates progress
+
+    %% ===== 处理与出图层 =====
+    class PlotEngine {
+        +render(data: Dataset, cfg: PlotConfig, family: str) Artifact
+        +render_map(ds) str
+        +render_timeseries(ds) str
+        +render_animation(ds) str
+    }
+    class PlotConfig {
+        +plot_type: str
+        +projection: dict
+        +basemap: dict
+        +colormap: str
+        +aggregation: str
+        +output_format: str
+        +load(profile: str) PlotConfig
+    }
+    class Regrid {
+        +to_grid(ds, target_step: float) Dataset
+        +region_mean(ds, area) Dataset
+    }
+    PlotEngine --> PlotConfig : reads
+    PlotEngine --> Regrid : uses
+
+    %% ===== 账户与配置层 =====
+    class AccountWizard {
+        +state: enum
+        +start() void
+        +submit_credentials(uid, key) bool
+        +finalize() void
+    }
+    class KeyringStore {
+        +save(service, key, secret) void
+        +get(service, key) str
+    }
+    class Settings {
+        +llm: LlmSettings
+        +download: DownloadSettings
+        +load(path) Settings
+    }
+    class LlmSettings {
+        +deepseek_api_key: str
+        +deepseek_base_url: str
+        +deepseek_model: str
+    }
+    AccountWizard --> KeyringStore : writes
+    AccountWizard --> CdsChannel : validates
+    Settings ..> DeepSeekParser : injects key
+    Settings ..> Normalizer : family table
+    Orchestrator ..> PlotEngine : triggers after fetch
+    CdsChannel --> KeyringStore : reads CDS key
+    Task --> RequestSchema : bound to

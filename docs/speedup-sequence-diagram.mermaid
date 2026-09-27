@@ -1,0 +1,190 @@
+sequenceDiagram
+    autonumber
+    participant UI as Web (TasksPage)
+    participant API as download_routes
+    participant ORC as Orchestrator
+    participant NRM as Normalizer
+    participant CH as CdsChannel (主进程)
+    participant A2 as aria2.probe_aria2
+    participant POOL as ProcessPoolExecutor
+    participant W as _fetch_one_block (worker)
+    participant TR as transport.download_block_file
+    participant CDS as cdsapi Client / CDS 服务端
+    participant ARIA as aria2c 子进程
+    participant ST as ResumableStore
+    participant BUS as TaskEventBus
+
+    UI->>API: POST /api/tasks {request_schema}
+    API->>ORC: submit(schema)
+    ORC->>NRM: normalize(schema)
+    NRM->>NRM: _resolve_granularity → "day"（熔断/auto 判定）
+    NRM->>NRM: _iter_days(timerange) + calendar.monthrange
+    NRM-->>ORC: CdsRequest(granularity="day", blocks=[365 块])
+    ORC->>CH: prepare_blocks(cds_req)
+    CH->>CH: build_cds_request(..., day=dd) + rel=.../{year}/{mm}/{dd}.nc
+    CH-->>ORC: prepared blocks
+    ORC->>ORC: params[chunk_granularity]="day"; params[blocks]=slim_blocks
+    ORC-->>API: Task(pending, block_stats.total=365)
+    API-->>UI: {code:0, data:task}
+
+    ORC->>ORC: Thread(_run_download)
+    ORC->>ST: pending_blocks(blocks)  %% 断点续传：跳过 .done
+    ST-->>ORC: pending（未完成块）
+    ORC->>CH: aria2_status()
+    CH->>A2: probe_aria2(settings.aria2_path)
+    A2-->>CH: Aria2Info(available, path, version, source)
+    ORC->>BUS: start() + status running
+    ORC->>CH: run_blocks(task, pending, store, bus, cancel_event, on_block_done)
+    CH->>CH: worker_cfg() 注入 aria2_enabled/aria2_bin/连接数/超时
+    CH->>POOL: submit(_fetch_one_block, (block, cfg, task_dir, cache_dir, task_id)) × N
+
+    loop 每块（worker 内，最多 retry_max 次）
+        POOL->>W: 执行块
+        W->>W: 检查 cancel.flag → 命中则返回 cancelled
+        W->>W: ensure_dir(dirname(target))
+        W->>TR: download_block_file(client, block, target, cfg, hooks)
+        alt aria2 可用且非 mock 默认关闭
+            TR->>CDS: retrieve(dataset, request)  %% 阶段A：不传 target
+            CDS-->>TR: Result / Results 句柄（job completed）
+            TR->>TR: resolve_result_url(handle) → (url, size)
+            TR->>ARIA: aria2c -x8 -s8 --dir=parent -o name url
+            ARIA-->>TR: returncode / 落盘文件
+            TR->>TR: verify_size(target, size)
+            alt 成功
+                TR-->>W: TransportResult(transport="aria2", rate_mbps)
+            else 失败/URL 缺失/大小不符
+                TR->>TR: cleanup_partial(target)
+                TR->>CDS: handle.download(target)  %% 降级：同一 job，不重排队
+                CDS-->>TR: 文件落盘
+                TR-->>W: TransportResult("cdsapi_fallback", fallback_reason)
+            end
+        else 默认路径（aria2 不可用 / mock）
+            TR->>CDS: retrieve(dataset, request, target)
+            CDS-->>TR: 文件落盘
+            TR-->>W: TransportResult(transport="cdsapi")
+        end
+        W->>ST: mark_done(key)   %% key = var/year/mm/dd
+        W->>BUS: emit_worker_event(log: 完成, transport, rate)
+        W-->>POOL: {status:"done", attempts, target, transport, bytes}
+    end
+
+    POOL-->>CH: as_completed 结果
+    CH->>BUS: emit(progress: 块 i/365)
+    CH->>ORC: on_block_done(result, completed, total)
+    ORC->>ORC: block_stats 累加 + progress
+    ORC->>ORC: _persist_throttled(task)  %% 节流落盘（事件不节流）
+    CH-->>ORC: results[]
+    ORC->>ST: save(manifest)
+    ORC->>ORC: _rebuild_result_files(blocks, store) → result.files（全量）
+    ORC->>ORC: _persist_throttled(task, force=True)
+    ORC->>BUS: emit(status: success / failed / paused)
+    BUS-->>UI: WS 事件（progress / status / done）
+
+---
+
+sequenceDiagram
+    autonumber
+    participant W as _fetch_one_block
+    participant TR as transport
+    participant CL as cdsapi/Fake Client
+    participant AR as aria2 模块
+    participant P as aria2c 进程
+    participant FS as 文件系统
+    participant ST as ResumableStore
+
+    W->>TR: download_block_file(client, block, target, cfg, hooks)
+    TR->>TR: gate = cfg.aria2_enabled and cfg.aria2_bin
+    alt gate 为假
+        TR->>CL: retrieve(dataset, request, target)
+        CL-->>FS: 写 target
+        TR-->>W: transport="cdsapi"
+    else gate 为真
+        TR->>CL: retrieve(dataset, request)   %% 阶段A：MARS 检索准备（瓶颈，不可加速）
+        CL-->>TR: handle
+        TR->>TR: resolve_result_url(handle)
+        alt 拿不到 URL
+            TR->>CL: handle.download(target)
+            TR-->>W: "cdsapi_fallback"(reason="no_location")
+        else 拿到 url + expected_size
+            TR->>AR: aria2_download(url, target, bin, x=8, s=8, expected_size)
+            AR->>AR: build_aria2_argv(--dir=parent, -o basename)
+            AR->>P: Popen(argv, CREATE_NO_WINDOW)
+            loop 每 0.5s
+                AR->>P: poll()
+                AR->>FS: cancel_check() 读 cancel.flag
+                alt 已取消
+                    AR->>P: kill()
+                    AR-->>TR: Aria2Run(cancelled=True)
+                    TR-->>W: raise BlockCancelled
+                    W->>W: return {status:"cancelled"}  %% 不 mark_failed
+                else 超 timeout_s
+                    AR->>P: kill()
+                    AR-->>TR: Aria2Run(ok=False, "timeout")
+                end
+            end
+            P-->>AR: returncode=0
+            AR->>FS: verify_size(target, expected_size)
+            alt 校验通过
+                AR-->>TR: Aria2Run(ok=True, bytes, elapsed)
+                TR-->>W: transport="aria2", rate_mbps
+                W->>ST: mark_done(key)
+            else 校验失败 / returncode != 0
+                AR-->>TR: Aria2Run(ok=False, stderr_tail)
+                TR->>AR: cleanup_partial(target)   %% 删 target 与 target.aria2
+                TR->>CL: handle.download(target)   %% 降级（同一 job，不重排队、不耗配额）
+                alt 降级也失败
+                    CL-->>TR: 抛异常
+                    TR-->>W: 异常上抛 → is_retryable_error → 指数退避重试
+                else 降级成功
+                    TR-->>W: "cdsapi_fallback"(reason=aria2 失败原因)
+                    W->>ST: mark_done(key)
+                end
+            end
+        end
+    end
+
+---
+
+sequenceDiagram
+    autonumber
+    participant UI as Web
+    participant ORC as Orchestrator
+    participant NRM as Normalizer
+    participant CH as CdsChannel
+    participant ST as ResumableStore
+
+    UI->>ORC: POST /api/tasks/{id}/resume
+    ORC->>ORC: granularity = params["chunk_granularity"]（提交时锁定）
+    ORC->>NRM: normalize(schema, granularity=granularity)
+    Note over NRM: 即使用户此刻把配置改成 month，<br/>本任务仍按提交时的 day 粒度重建 → key 不漂移
+    NRM-->>ORC: CdsRequest(blocks 与首次一致)
+    ORC->>CH: prepare_blocks(cds_req)
+    ORC->>ST: pending_blocks(blocks)
+    ST->>ST: is_done("var/2020/01/05") 逐块判定（内容必须 == "done"）
+    ST-->>ORC: 仅剩未完成块
+    ORC->>CH: run_blocks(...)（仅跑剩余块）
+
+---
+
+sequenceDiagram
+    autonumber
+    participant U as 用户
+    participant D as diagnose_download.py --benchmark
+    participant NRM as Normalizer
+    participant CH as CdsChannel
+    participant POOL as ProcessPoolExecutor
+    participant R as 报表
+
+    U->>D: --benchmark --workers 2,4,6,8 --granularity day,month --blocks 12
+    D->>D: check_rc() + probe_aria2()（打印可用性）
+    D->>U: 真实模式配额提示 → 需 --yes 或交互确认
+    loop 每个 (granularity, workers) 组合
+        D->>NRM: Normalizer(granularity=g).normalize(bench_schema)
+        D->>CH: prepare_blocks() → 取前 N 块
+        D->>CH: Settings(cds_max_workers=w) → run_blocks(...)
+        CH->>POOL: 并发执行（与生产完全同一代码路径）
+        POOL-->>CH: results（含 transport / bytes / attempts）
+        CH-->>D: wall / failed / retried 统计
+    end
+    D->>R: 矩阵表 + 推荐 workers/granularity + 限速提示
+    R-->>U: 控制台 / --csv / --json

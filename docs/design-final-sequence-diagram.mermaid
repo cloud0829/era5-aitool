@@ -1,0 +1,75 @@
+%% ===== v2 最终版时序图（design-final.md §8）=====
+%% 变更：删除 GCS 路由分支；NL 层 DeepSeek + 规则兜底；新增归一化器（ERA5/ERA5-Land 差异）
+
+%% ===== 场景一：NL → 下载 → 出图全流程（DeepSeek/规则 → 单一 CDS 通道）=====
+sequenceDiagram
+    participant U as 用户(前端)
+    participant NL as NL解析层
+    participant O as 编排层
+    participant N as 归一化器
+    participant C as CDS通道(多进程)
+    participant P as 出图引擎
+
+    U->>NL: 提交自然语言文本
+    alt 有 DEEPSEEK_API_KEY 且在线
+        NL->>NL: DeepSeek 解析(response_format=json_object) → RequestSchema
+    else 无 Key / 离线 / LLM失败
+        NL->>NL: 规则解析(模板+变量词典)
+    end
+    NL-->>U: 返回 RequestSchema 或 need_info/补参表单
+    opt 缺必填字段 或 confidence<0.7
+        U->>NL: 提交参数表单/确认
+    end
+    U->>O: submit(RequestSchema)
+    O->>N: normalize(req)
+    N-->>O: CdsRequest(含 ERA5/ERA5-Land 差异参数)
+    O->>C: fetch(cds_request)
+    C-->>O: 切块→并发≤4→退避→.done/manifest 进度 (WebSocket 推前端)
+    C-->>O: Dataset 完成(本地 NetCDF)
+    O->>P: render(data, PlotConfig, family)
+    P-->>U: 图片/动画结果
+
+%% ===== 场景二：断点续传（manifest 检查）=====
+sequenceDiagram
+    participant U as 用户
+    participant O as 编排层
+    participant R as ResumableStore
+    participant C as CDS通道
+    U->>O: POST /api/download/{id}/resume
+    O->>R: load_manifest(task_id)
+    R-->>O: blocks(status: done/failed/missing)
+    loop 每个未完成块
+        O->>C: 下载块
+        C-->>R: mark_done(block) / mark_failed(block,err)
+    end
+    O-->>U: 任务 success / failed（含已跳过 done 块统计）
+
+%% ===== 场景三：账号申请半自动引导 =====
+sequenceDiagram
+    participant U as 用户
+    participant W as AccountWizard
+    participant K as KeyringStore
+    U->>W: 点击"申请账号"
+    W-->>U: 打开 CDS 注册页 + 说明
+    U->>W: 粘贴 UID + API Key
+    W->>W: 校验(cdsapi.Client.info())
+    alt 校验通过
+        W->>K: 存入钥匙串
+        W->>W: 生成 ~/.cdsapirc (权限600) + 注入环境变量
+        W-->>U: 就绪
+    else 校验失败
+        W-->>U: 提示重试/重新引导
+    end
+
+%% ===== 场景四：出图配置热加载生效 =====
+sequenceDiagram
+    participant U as 用户
+    participant CF as ConfigPanel
+    participant PC as PlotConfig
+    participant P as PlotEngine
+    U->>CF: 修改配色/投影/聚合并保存
+    CF->>PC: load(profile) 重载 (mtime 比对)
+    Note over PC: 优先级: 面板覆盖 > profile > 默认
+    U->>P: 触发出图
+    P->>PC: 读取最新 PlotConfig
+    P-->>U: 按新配置出图(无需重启)

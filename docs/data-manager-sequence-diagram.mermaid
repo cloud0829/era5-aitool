@@ -1,0 +1,82 @@
+sequenceDiagram
+    participant U as User
+    participant DP as DataPage
+    participant API as api/client.ts
+    participant RT as data_routes
+    participant SVC as DataManagerService
+    participant NC as nc_meta
+
+    rect rgb(238,245,255)
+    note over U,RT: ① 列表加载 + 搜索/排序（前端本地）
+    U->>DP: 进入 /data
+    DP->>API: dataFiles()
+    API->>RT: GET /api/data/files
+    RT->>SVC: list_files()
+    SVC->>SVC: busy_map() 读 running/pending 任务 blocks rel_target
+    SVC->>SVC: scan_cache_files(rglob *.nc + 反解析 + size 降序)
+    SVC-->>RT: CacheFileEntry[]
+    RT-->>API: {code:0, data:{files,total}}
+    API-->>DP: files
+    DP->>DP: filtered = query 过滤 + sortDir 排序
+    DP-->>U: 表格/状态徽标/空态
+    U->>DP: 搜索词 / 点大小表头（即时过滤排序）
+    end
+
+    rect rgb(255,248,230)
+    note over U,NC: ② 点详情 → 元数据读取（失败兜底不阻塞）
+    U->>DP: 点行「详情」
+    DP->>API: dataMetadata(rel_path)
+    API->>RT: GET /api/data/files/metadata?path=rel
+    RT->>SVC: read_metadata(rel)
+    SVC->>NC: read_netcdf_header(abs)
+    alt ok
+        NC-->>SVC: {ok:true, variables/dimensions/coords/time_range}
+        SVC-->>RT: data
+        RT-->>API: code 0
+        API-->>DP: meta
+        DP-->>U: 抽屉表格展示
+    else read error
+        NC-->>SVC: {ok:false, error}
+        SVC-->>RT: data(ok=false)
+        RT-->>API: code 0
+        API-->>DP: meta(ok=false)
+        DP-->>U: 抽屉展示兜底错误文案
+    end
+    end
+
+    rect rgb(240,255,240)
+    note over U,RT: ③ 删除链路（单删/批删）+ 并发占用 409 兜底
+    U->>DP: 点删除/勾选后批量删除
+    DP->>DP: open DeleteFileDialog
+    DP-->>U: 二次确认（单: rel+大小 / 批: N 个+释放约 XX）
+    U->>DP: 确认
+    DP->>API: dataDeleteFile(path) 或 dataDeleteFiles(paths)
+    API->>RT: DELETE /files?path=... 或 ?paths=a&paths=b
+    RT->>SVC: delete_paths(rels)
+    SVC->>SVC: 现场重查 busy_map
+    alt 目标 busy
+        SVC-->>RT: busy
+        alt 单删
+            RT-->>API: ApiError 6002 (被任务占用)
+            API-->>DP: throw
+            DP-->>U: Snackbar 错误 + refresh
+        else 批删
+            RT-->>API: code 0 + results(busy)
+            API-->>DP: 汇总
+            DP-->>U: Snackbar「N 个被占用」+ refresh
+        end
+    else 可删
+        SVC->>SVC: os.unlink; catch PermissionError/OSError→重查→busy/failed
+        SVC-->>RT: ok/failed
+        alt 单删失败
+            RT-->>API: ApiError 6001/6002/6003
+            API-->>DP: throw
+            DP-->>U: Snackbar 中文错误 + refresh
+        else 成功
+            RT-->>API: code 0 + released_bytes
+            API-->>DP: 结果
+            DP->>DP: 成功 Snackbar + 清理勾选 + refresh
+            DP-->>U: 列表刷新
+        end
+    end
+    end

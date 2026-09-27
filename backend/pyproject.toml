@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "era5-tool-backend"
+version = "0.2.0"
+description = "ERA5/ERA5-Land 自然语言下载 + 出图工具 · 本地 Web 后端（FastAPI）"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic>=2",
+    "pydantic-settings",
+    "httpx",
+    "structlog",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+runtime = [
+    "fastapi", "uvicorn[standard]", "pydantic>=2", "pydantic-settings",
+    "httpx", "structlog", "python-dotenv",
+]
+cds = ["cdsapi"]
+nl = ["openai"]                      # DeepSeek OpenAI 兼容接口
+plot = ["matplotlib", "cartopy", "pandas", "xarray", "netCDF4", "scipy"]
+account = ["keyring"]
+all = ["era5-tool-backend[runtime,cds,nl,plot,account]"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["era5tool*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

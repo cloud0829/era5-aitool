@@ -1,0 +1,405 @@
+[
+  {
+    "id": "case_01",
+    "text": "下载最近五年长三角五六月地表温度",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-single-levels",
+      "dataset_family": "era5-single",
+      "variables": ["2m_temperature"],
+      "timerange": {"start": "2020-05-01", "end": "2025-06-30"},
+      "area": {"west": 118, "south": 29, "east": 123, "north": 34},
+      "frequency": "hourly",
+      "aggregation": "raw",
+      "confidence": 0.9,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_02",
+    "text": "华北平原2023年1月土壤湿度，按月平均",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-land",
+      "dataset_family": "land",
+      "variables": ["volumetric_soil_water_layer_1"],
+      "timerange": {"start": "2023-01-01", "end": "2023-01-31"},
+      "area": {"west": 112, "south": 32, "east": 120, "north": 41},
+      "frequency": "monthly",
+      "aggregation": "mean",
+      "confidence": 0.88,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_03",
+    "text": "Get 2m temperature for the Yangtze River Delta, June 2020",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-single-levels",
+      "dataset_family": "era5-single",
+      "variables": ["2m_temperature"],
+      "timerange": {"start": "2020-06-01", "end": "2020-06-30"},
+      "area": {"west": 118, "south": 29, "east": 123, "north": 34},
+      "frequency": "hourly",
+      "aggregation": "raw",
+      "confidence": 0.92,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_04",
+    "text": "下载2020年全年中国区域日降水量",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-single-levels",
+      "dataset_family": "era5-single",
+      "variables": ["total_precipitation"],
+      "timerange": {"start": "2020-01-01", "end": "2020-12-31"},
+      "area": {"west": 73, "south": 18, "east": 135, "north": 54},
+      "frequency": "daily",
+      "aggregation": "raw",
+      "confidence": 0.9,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_05",
+    "text": "珠三角2023年夏季逐时2米气温",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-single-levels",
+      "dataset_family": "era5-single",
+      "variables": ["2m_temperature"],
+      "timerange": {"start": "2023-06-01", "end": "2023-08-31"},
+      "area": {"west": 112, "south": 21, "east": 115, "north": 24},
+      "frequency": "hourly",
+      "aggregation": "raw",
+      "confidence": 0.9,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_06",
+    "text": "ERA5-Land 长三角 2021-2023 年每月平均土壤温度",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-land-monthly-means",
+      "dataset_family": "land-monthly",
+      "variables": ["soil_temperature_level_1"],
+      "timerange": {"start": "2021-01-01", "end": "2023-12-31"},
+      "area": {"west": 118, "south": 29, "east": 123, "north": 34},
+      "frequency": "monthly",
+      "aggregation": "mean",
+      "confidence": 0.91,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_07",
+    "text": "近十年华东地区地面气压",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-single-levels",
+      "dataset_family": "era5-single",
+      "variables": ["surface_pressure"],
+      "timerange": {"start": "2015-08-16", "end": "2025-08-16"},
+      "area": {"west": 116, "south": 26, "east": 123, "north": 36},
+      "frequency": "hourly",
+      "aggregation": "raw",
+      "confidence": 0.87,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_08",
+    "text": "Download 10m wind components (u and v) over the Yangtze River Delta, 2022",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-single-levels",
+      "dataset_family": "era5-single",
+      "variables": ["10m_u_component_of_wind", "10m_v_component_of_wind"],
+      "timerange": {"start": "2022-01-01", "end": "2022-12-31"},
+      "area": {"west": 118, "south": 29, "east": 123, "north": 34},
+      "frequency": "hourly",
+      "aggregation": "raw",
+      "confidence": 0.93,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_09",
+    "text": "四川盆地 2020 年 850hPa 位势高度和温度",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-pressure-levels",
+      "dataset_family": "era5-pressure",
+      "variables": ["geopotential", "temperature"],
+      "pressure_levels": [850],
+      "timerange": {"start": "2020-01-01", "end": "2020-12-31"},
+      "area": {"west": 102, "south": 28, "east": 108, "north": 33},
+      "frequency": "hourly",
+      "aggregation": "raw",
+      "confidence": 0.9,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_10",
+    "text": "青藏高原 2023 年雪深水当量",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-land",
+      "dataset_family": "land",
+      "variables": ["snow_depth_water_equivalent"],
+      "timerange": {"start": "2023-01-01", "end": "2023-12-31"},
+      "area": {"west": 78, "south": 27, "east": 104, "north": 38},
+      "frequency": "hourly",
+      "aggregation": "raw",
+      "confidence": 0.85,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_11",
+    "text": "下载长三角 2018-2022 五年逐月总降水（ERA5）",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-single-levels-monthly-means",
+      "dataset_family": "era5-monthly",
+      "variables": ["total_precipitation"],
+      "timerange": {"start": "2018-01-01", "end": "2022-12-31"},
+      "area": {"west": 118, "south": 29, "east": 123, "north": 34},
+      "frequency": "monthly",
+      "aggregation": "sum",
+      "confidence": 0.89,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_12",
+    "text": "长江中下游 2023 年 1 月 2 米露点温度",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-single-levels",
+      "dataset_family": "era5-single",
+      "variables": ["2m_dewpoint_temperature"],
+      "timerange": {"start": "2023-01-01", "end": "2023-01-31"},
+      "area": {"west": 112, "south": 28, "east": 122, "north": 33},
+      "frequency": "hourly",
+      "aggregation": "raw",
+      "confidence": 0.9,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_13",
+    "text": "Download daily mean temperature for North China Plain, 2023",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-single-levels",
+      "dataset_family": "era5-single",
+      "variables": ["2m_temperature"],
+      "timerange": {"start": "2023-01-01", "end": "2023-12-31"},
+      "area": {"west": 112, "south": 32, "east": 120, "north": 41},
+      "frequency": "daily",
+      "aggregation": "mean",
+      "confidence": 0.9,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_14",
+    "text": "海南岛 2022 年 7 月海平面气压",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-single-levels",
+      "dataset_family": "era5-single",
+      "variables": ["mean_sea_level_pressure"],
+      "timerange": {"start": "2022-07-01", "end": "2022-07-31"},
+      "area": {"west": 108.5, "south": 18, "east": 111, "north": 20.5},
+      "frequency": "hourly",
+      "aggregation": "raw",
+      "confidence": 0.9,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_15",
+    "text": "珠三角 2023 年 5-6 月土壤体积含水量（ERA5-Land）",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-land",
+      "dataset_family": "land",
+      "variables": ["volumetric_soil_water_layer_1"],
+      "timerange": {"start": "2023-05-01", "end": "2023-06-30"},
+      "area": {"west": 112, "south": 21, "east": 115, "north": 24},
+      "frequency": "hourly",
+      "aggregation": "raw",
+      "confidence": 0.9,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_16",
+    "text": "长三角 2020 年每日最高 2 米气温",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-single-levels",
+      "dataset_family": "era5-single",
+      "variables": ["2m_temperature"],
+      "timerange": {"start": "2020-01-01", "end": "2020-12-31"},
+      "area": {"west": 118, "south": 29, "east": 123, "north": 34},
+      "frequency": "daily",
+      "aggregation": "max",
+      "confidence": 0.9,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_17",
+    "text": "Download ERA5-Land monthly mean of total precipitation for the Yangtze River Delta, 2020-2022",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-land-monthly-means",
+      "dataset_family": "land-monthly",
+      "variables": ["total_precipitation"],
+      "timerange": {"start": "2020-01-01", "end": "2022-12-31"},
+      "area": {"west": 118, "south": 29, "east": 123, "north": 34},
+      "frequency": "monthly",
+      "aggregation": "mean",
+      "confidence": 0.92,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_18",
+    "text": "华北 2023 年夏季逐时 10 米风速",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-single-levels",
+      "dataset_family": "era5-single",
+      "variables": ["10m_wind_speed"],
+      "timerange": {"start": "2023-06-01", "end": "2023-08-31"},
+      "area": {"west": 112, "south": 32, "east": 120, "north": 41},
+      "frequency": "hourly",
+      "aggregation": "raw",
+      "confidence": 0.9,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_19",
+    "text": "长三角 2022 年潜在蒸发量（ERA5-Land）",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-land",
+      "dataset_family": "land",
+      "variables": ["potential_evaporation"],
+      "timerange": {"start": "2022-01-01", "end": "2022-12-31"},
+      "area": {"west": 118, "south": 29, "east": 123, "north": 34},
+      "frequency": "hourly",
+      "aggregation": "raw",
+      "confidence": 0.9,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_20",
+    "text": "近三年长三角逐日 2 米平均温度",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-single-levels",
+      "dataset_family": "era5-single",
+      "variables": ["2m_temperature"],
+      "timerange": {"start": "2022-08-16", "end": "2025-08-16"},
+      "area": {"west": 118, "south": 29, "east": 123, "north": 34},
+      "frequency": "daily",
+      "aggregation": "mean",
+      "confidence": 0.88,
+      "confidence_ge": 0.7
+    }
+  },
+  {
+    "id": "case_21",
+    "text": "下载降水数据",
+    "mock": "need_info",
+    "expect": {"need_info": true, "max_questions": 3, "missing": ["timerange", "area"]}
+  },
+  {
+    "id": "case_22",
+    "text": "给我温度图",
+    "mock": "need_info",
+    "expect": {"need_info": true, "max_questions": 3, "missing": ["timerange", "area"]}
+  },
+  {
+    "id": "case_23",
+    "text": "下载2020年的数据",
+    "mock": "need_info",
+    "expect": {"need_info": true, "max_questions": 3, "missing": ["variables"]}
+  },
+  {
+    "id": "case_24",
+    "text": "Get precipitation data",
+    "mock": "need_info",
+    "expect": {"need_info": true, "max_questions": 3, "missing": ["timerange", "area"]}
+  },
+  {
+    "id": "case_25",
+    "text": "下载长三角的温度",
+    "mock": "need_info",
+    "expect": {"need_info": true, "max_questions": 3, "missing": ["timerange"]}
+  },
+  {
+    "id": "case_26",
+    "text": "有点想要长江附近的气温数据，时间随便定吧",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-single-levels",
+      "dataset_family": "era5-single",
+      "variables": ["2m_temperature"],
+      "timerange": {"start": "2020-01-01", "end": "2025-12-31"},
+      "area": {"west": 118, "south": 29, "east": 123, "north": 34},
+      "frequency": "hourly",
+      "aggregation": "raw",
+      "confidence": 0.5,
+      "confidence_lt": 0.7,
+      "confirm": true
+    }
+  },
+  {
+    "id": "case_27",
+    "text": "帮我看看能不能下点雪的数据？可能是在华北，时间不确定",
+    "mock": "legal",
+    "expect": {
+      "dataset": "reanalysis-era5-land",
+      "dataset_family": "land",
+      "variables": ["snow_depth_water_equivalent"],
+      "timerange": {"start": "2023-01-01", "end": "2025-12-31"},
+      "area": {"west": 112, "south": 32, "east": 120, "north": 41},
+      "frequency": "hourly",
+      "aggregation": "raw",
+      "confidence": 0.55,
+      "confidence_lt": 0.7,
+      "confirm": true
+    }
+  },
+  {
+    "id": "case_28",
+    "text": "随便下载点东西吧",
+    "mock": "invalid",
+    "expect": {"invalid_llm": true, "handled": "degrade"}
+  },
+  {
+    "id": "case_29",
+    "text": "下载长三角2020年温度，顺便把北京2021年降水也下载了",
+    "mock": "invalid",
+    "expect": {"invalid_llm": true, "handled": "degrade"}
+  },
+  {
+    "id": "case_30",
+    "text": "温度降水风都要，时间最近五年，区域长三角，再加点气压，哦还要土壤湿度",
+    "mock": "invalid",
+    "expect": {"invalid_llm": true, "handled": "degrade"}
+  }
+]
